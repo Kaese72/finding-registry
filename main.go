@@ -38,7 +38,7 @@ func init() {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.BindEnv("database.connectionString")
 	viper.BindEnv("database.name")
-	viper.SetDefault("database.name", "assetsregistry")
+	viper.SetDefault("database.name", "riskRegistry")
 
 	// JWT configuration
 	viper.BindEnv("jwt.secret")
