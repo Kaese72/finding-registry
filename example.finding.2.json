@@ -1,0 +1,11 @@
+{
+    "name": "example finding",
+    "reportDistinguisher": {
+        "type": "example",
+        "value": "some uuid"
+    },
+    "reportLocator": {
+        "type": "IPv4",
+        "value": "192.168.101.3"
+    }
+}

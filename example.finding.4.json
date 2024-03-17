@@ -1,0 +1,11 @@
+{
+    "name": "example finding",
+    "reportDistinguisher": {
+        "type": "example",
+        "value": "some other uuid"
+    },
+    "reportLocator": {
+        "type": "HTTP",
+        "value": "https://192.168.101.3:443/api/v1/finding/1234"
+    }
+}
