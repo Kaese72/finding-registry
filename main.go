@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Kaese72/findings-registry/event"
-	"github.com/Kaese72/findings-registry/internal/application"
-	"github.com/Kaese72/findings-registry/internal/database"
-	"github.com/Kaese72/findings-registry/rest"
+	"github.com/Kaese72/finding-registry/event"
+	"github.com/Kaese72/finding-registry/internal/application"
+	"github.com/Kaese72/finding-registry/internal/database"
+	"github.com/Kaese72/finding-registry/rest"
 	"github.com/spf13/viper"
 )
 
@@ -48,6 +48,8 @@ func init() {
 	viper.SetDefault("listen.host", "0.0.0.0")
 	viper.BindEnv("listen.port")
 	viper.SetDefault("listen.port", "8080")
+
+	// Event configuration
 	viper.BindEnv("event.findingUpdates")
 	viper.SetDefault("event.findingUpdates", "findingUpdates")
 	viper.BindEnv("event.connectionString")

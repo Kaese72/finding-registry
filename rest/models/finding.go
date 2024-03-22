@@ -1,6 +1,6 @@
 package models
 
-import "github.com/Kaese72/findings-registry/internal/intermediaries"
+import "github.com/Kaese72/finding-registry/internal/intermediaries"
 
 type ReportLocator struct {
 	Type  string `json:"type"`

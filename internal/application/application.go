@@ -3,9 +3,9 @@ package application
 import (
 	"errors"
 
-	"github.com/Kaese72/findings-registry/event"
-	"github.com/Kaese72/findings-registry/internal/database"
-	"github.com/Kaese72/findings-registry/internal/intermediaries"
+	"github.com/Kaese72/finding-registry/event"
+	"github.com/Kaese72/finding-registry/internal/database"
+	"github.com/Kaese72/finding-registry/internal/intermediaries"
 )
 
 type ApplicationLogic struct {

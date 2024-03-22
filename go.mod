@@ -1,4 +1,4 @@
-module github.com/Kaese72/findings-registry
+module github.com/Kaese72/finding-registry
 
 go 1.22
 

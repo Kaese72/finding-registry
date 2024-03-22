@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Kaese72/findings-registry/internal/application"
-	"github.com/Kaese72/findings-registry/rest/models"
+	"github.com/Kaese72/finding-registry/internal/application"
+	"github.com/Kaese72/finding-registry/rest/models"
 	"github.com/gorilla/mux"
 )
 

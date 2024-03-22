@@ -3,7 +3,7 @@ package database
 import (
 	"context"
 
-	"github.com/Kaese72/findings-registry/internal/intermediaries"
+	"github.com/Kaese72/finding-registry/internal/intermediaries"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
