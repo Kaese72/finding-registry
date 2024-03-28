@@ -1,17 +1,48 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/Kaese72/finding-registry/internal/application"
 	"github.com/Kaese72/finding-registry/rest/models"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 )
 
+func terminalHTTPError(w http.ResponseWriter, err error) {
+	var apiError APIError
+	if errors.As(err, &apiError) {
+		if apiError.Code == 500 {
+			// When an unknown error occurs, do not send the error to the client
+			http.Error(w, "Internal Server Error", apiError.Code)
+			log.Print(err.Error())
+			return
+
+		} else {
+			bytes, intErr := json.MarshalIndent(apiError, "", "   ")
+			if intErr != nil {
+				// Must send a normal Error an not APIError just in case of eternal loop
+				terminalHTTPError(w, fmt.Errorf("error encoding response: %s", intErr.Error()))
+				return
+			}
+			http.Error(w, string(bytes), apiError.Code)
+			return
+		}
+	} else {
+		terminalHTTPError(w, APIError{Code: http.StatusInternalServerError, WrappedError: err})
+		return
+	}
+}
+
 type restApplicationMux struct {
 	application application.ApplicationLogic
+	jwtSecret   string
 }
 
 func (appMux restApplicationMux) findingGetHandler(w http.ResponseWriter, r *http.Request) {
@@ -86,9 +117,67 @@ func (appMux restApplicationMux) findingsPostHandler(w http.ResponseWriter, r *h
 	}
 }
 
+type contextKey string
+
+const (
+	userIDKey         contextKey = "userID"
+	organizationIDKey contextKey = "organizationID"
+)
+
+func (app restApplicationMux) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method")
+			}
+			return []byte(app.jwtSecret), nil
+		})
+
+		if err != nil {
+			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: fmt.Errorf("error parsing token: %s", err.Error())})
+			return
+		}
+
+		if !token.Valid {
+			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("invalid token")})
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read claims")})
+			return
+		}
+
+		userID, ok := claims[string(userIDKey)].(float64)
+		if !ok {
+			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read userId claim")})
+			return
+		}
+		organizationID, ok := claims[string(organizationIDKey)].(float64)
+		if !ok {
+			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read organizationId claim")})
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), userIDKey, userID)
+		ctx = context.WithValue(ctx, organizationIDKey, organizationID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func InitMux(logic application.ApplicationLogic) *mux.Router {
 	router := mux.NewRouter()
 	appMux := restApplicationMux{application: logic}
+	router.Use(appMux.authMiddleware)
 	router.HandleFunc("/findings/{identifier}", appMux.findingGetHandler).Methods(http.MethodGet)
 	router.HandleFunc("/findings", appMux.findingsGetHandler).Methods(http.MethodGet)
 	router.HandleFunc("/findings", appMux.findingsPostHandler).Methods(http.MethodPost)
