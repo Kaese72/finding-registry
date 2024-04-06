@@ -46,13 +46,14 @@ type restApplicationMux struct {
 }
 
 func (appMux restApplicationMux) findingGetHandler(w http.ResponseWriter, r *http.Request) {
+	organizationID := int(r.Context().Value(organizationIDKey).(float64))
 	vars := mux.Vars(r)
 	identifier, ok := vars["identifier"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	finding, err := appMux.application.ReadFinding(identifier)
+	finding, err := appMux.application.ReadFinding(identifier, organizationID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Print(err.Error())
@@ -69,7 +70,8 @@ func (appMux restApplicationMux) findingGetHandler(w http.ResponseWriter, r *htt
 }
 
 func (appMux restApplicationMux) findingsGetHandler(w http.ResponseWriter, r *http.Request) {
-	findings, err := appMux.application.ReadFindings()
+	organizationId := int(r.Context().Value(organizationIDKey).(float64))
+	findings, err := appMux.application.ReadFindings(organizationId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Print(err.Error())
@@ -91,6 +93,7 @@ func (appMux restApplicationMux) findingsGetHandler(w http.ResponseWriter, r *ht
 }
 
 func (appMux restApplicationMux) findingsPostHandler(w http.ResponseWriter, r *http.Request) {
+	organizationID := int(r.Context().Value(organizationIDKey).(float64))
 	inputFinding := models.Finding{}
 	err := json.NewDecoder(r.Body).Decode(&inputFinding)
 	if err != nil {
@@ -101,7 +104,7 @@ func (appMux restApplicationMux) findingsPostHandler(w http.ResponseWriter, r *h
 	// Reset Identifier, just to be sure
 	// FIXME should not be fixed here
 	inputFinding.Identifier = ""
-	findingR, err := appMux.application.PostFinding(inputFinding.ToIntermediary())
+	findingR, err := appMux.application.PostFinding(inputFinding.ToIntermediary(), organizationID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Print(err.Error())
@@ -174,9 +177,9 @@ func (app restApplicationMux) authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func InitMux(logic application.ApplicationLogic) *mux.Router {
+func InitMux(logic application.ApplicationLogic, jwtSecret string) *mux.Router {
 	router := mux.NewRouter()
-	appMux := restApplicationMux{application: logic}
+	appMux := restApplicationMux{application: logic, jwtSecret: jwtSecret}
 	router.Use(appMux.authMiddleware)
 	router.HandleFunc("/findings/{identifier}", appMux.findingGetHandler).Methods(http.MethodGet)
 	router.HandleFunc("/findings", appMux.findingsGetHandler).Methods(http.MethodGet)

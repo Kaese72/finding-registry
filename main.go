@@ -84,6 +84,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	router := rest.InitMux(application.NewApplicationLogic(db, updateChannel))
+	router := rest.InitMux(application.NewApplicationLogic(db, updateChannel), Loaded.JWT.Secret)
 	http.ListenAndServe(fmt.Sprintf("%s:%d", Loaded.Listen.Host, Loaded.Listen.Port), router)
 }

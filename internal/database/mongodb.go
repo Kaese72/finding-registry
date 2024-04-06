@@ -61,6 +61,7 @@ func ReportDistinguisherFromIntermediary(intermediary intermediaries.ReportDisti
 type Finding struct {
 	Identifier            string              `bson:"_id,omitempty"`
 	Name                  string              `bson:"name"`
+	OrganizationId        int                 `bson:"organizationId"`
 	ReportDistinguisher   ReportDistinguisher `bson:"reportDistinguisher"`
 	ReportLocator         ReportLocator       `bson:"reportLocator"`
 	ImpliedReportLocators []ReportLocator     `bson:"impliedReportLocators"`
@@ -74,6 +75,7 @@ func (finding Finding) toIntermediary() intermediaries.Finding {
 	return intermediaries.Finding{
 		Identifier:            finding.Identifier,
 		Name:                  finding.Name,
+		OrganizationId:        finding.OrganizationId,
 		ReportDistinguisher:   finding.ReportDistinguisher.toIntermediary(),
 		ReportLocator:         finding.ReportLocator.toIntermediary(),
 		ImpliedReportLocators: implied,
@@ -88,6 +90,7 @@ func findingFromIntermediary(intermediary intermediaries.Finding) Finding {
 	return Finding{
 		Identifier:            intermediary.Identifier,
 		Name:                  intermediary.Name,
+		OrganizationId:        intermediary.OrganizationId,
 		ReportDistinguisher:   ReportDistinguisherFromIntermediary(intermediary.ReportDistinguisher),
 		ReportLocator:         ReportLocatorFromIntermediary(intermediary.ReportLocator),
 		ImpliedReportLocators: reportLocators,
@@ -114,7 +117,8 @@ func (persistence mongoFindingsPersistence) findingCollection() *mongo.Collectio
 	return persistence.mongoClient.Database(persistence.dbName).Collection("findings")
 }
 
-func (persistence mongoFindingsPersistence) UpdateFinding(findingI intermediaries.Finding) (intermediaries.Finding, error) {
+func (persistence mongoFindingsPersistence) UpdateFinding(findingI intermediaries.Finding, organizationID int) (intermediaries.Finding, error) {
+	findingI.OrganizationId = organizationID
 	findingC := persistence.findingCollection()
 	findingR := Finding{}
 	mongoFinding := findingFromIntermediary(findingI)
@@ -122,18 +126,18 @@ func (persistence mongoFindingsPersistence) UpdateFinding(findingI intermediarie
 	return findingR.toIntermediary(), err
 }
 
-func (persistence mongoFindingsPersistence) GetFinding(identifier string) (intermediaries.Finding, error) {
+func (persistence mongoFindingsPersistence) GetFinding(identifier string, organizationID int) (intermediaries.Finding, error) {
 	findinfC := persistence.findingCollection()
 	objID, _ := primitive.ObjectIDFromHex(identifier)
 	findingR := Finding{}
-	err := findinfC.FindOne(context.TODO(), bson.D{primitive.E{Key: "_id", Value: objID}}).Decode(&findingR)
+	err := findinfC.FindOne(context.TODO(), bson.D{{Key: "_id", Value: objID}, {Key: "organizationId", Value: organizationID}}).Decode(&findingR)
 	return findingR.toIntermediary(), err
 }
 
-func (persistence mongoFindingsPersistence) GetFindings() ([]intermediaries.Finding, error) {
+func (persistence mongoFindingsPersistence) GetFindings(organizationID int) ([]intermediaries.Finding, error) {
 	findinfC := persistence.findingCollection()
 	findingIs := []intermediaries.Finding{}
-	cursor, err := findinfC.Find(context.TODO(), bson.D{})
+	cursor, err := findinfC.Find(context.TODO(), bson.D{{Key: "organizationId", Value: organizationID}})
 	if err != nil {
 		return nil, err
 	}
