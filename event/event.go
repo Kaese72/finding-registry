@@ -31,9 +31,11 @@ func Setup(connectionString string, queueName string) (chan FindingUpdate, error
 	}
 	findingUpdatesChan := make(chan FindingUpdate)
 	go func() {
+		log.Printf("Started event sender")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		for findingUpdate := range findingUpdatesChan {
+			log.Printf("Received update for: %s", findingUpdate.ID)
 			encoded, err := json.Marshal(findingUpdate)
 			if err != nil {
 				log.Printf("Failed to marshal finding update: %v... Continued", err)
