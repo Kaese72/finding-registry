@@ -178,7 +178,7 @@ func (app restApplicationMux) authMiddleware(next http.Handler) http.Handler {
 }
 
 func InitMux(logic application.ApplicationLogic, jwtSecret string) *mux.Router {
-	router := mux.NewRouter()
+	router := mux.NewRouter().PathPrefix("/finding-registry").Subrouter()
 	appMux := restApplicationMux{application: logic, jwtSecret: jwtSecret}
 	router.Use(appMux.authMiddleware)
 	router.HandleFunc("/findings/{identifier}", appMux.findingGetHandler).Methods(http.MethodGet)
