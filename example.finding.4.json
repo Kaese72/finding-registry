@@ -6,6 +6,7 @@
     },
     "reportLocator": {
         "type": "HTTP",
-        "value": "https://192.168.101.3:443/api/v1/finding/1234"
+        "value": "https://192.168.101.3:443/api/v1/finding/1234",
+        "distinguisher": "apartment"
     }
 }

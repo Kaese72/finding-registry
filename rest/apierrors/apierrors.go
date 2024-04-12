@@ -1,4 +1,4 @@
-package rest
+package apierrors
 
 import (
 	"encoding/json"

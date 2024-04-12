@@ -3,21 +3,24 @@ package models
 import "github.com/Kaese72/finding-registry/internal/intermediaries"
 
 type ReportLocator struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
+	Type          string `json:"type"`
+	Value         string `json:"value"`
+	Distinguisher string `json:"distinguisher"`
 }
 
 func (locator ReportLocator) toIntermediary() intermediaries.ReportLocator {
 	return intermediaries.ReportLocator{
-		Type:  intermediaries.ReportLocatorType(locator.Type),
-		Value: locator.Value,
+		Type:          intermediaries.ReportLocatorType(locator.Type),
+		Value:         locator.Value,
+		Distinguisher: locator.Distinguisher,
 	}
 }
 
 func ReportLocatorFromIntermediary(intermediary intermediaries.ReportLocator) ReportLocator {
 	return ReportLocator{
-		Type:  string(intermediary.Type),
-		Value: intermediary.Value,
+		Type:          string(intermediary.Type),
+		Value:         intermediary.Value,
+		Distinguisher: intermediary.Distinguisher,
 	}
 }
 

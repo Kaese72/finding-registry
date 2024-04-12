@@ -42,6 +42,11 @@ func (logic ApplicationLogic) PostFinding(finding intermediaries.Finding, organi
 	if finding.ReportLocator.Value == "" {
 		return intermediaries.Finding{}, errors.New("must set report locator value")
 	}
+	if finding.ReportLocator.Distinguisher == "" {
+		// If the locator is not set, we default to "global", indicating
+		// it has no locality.
+		finding.ReportLocator.Distinguisher = intermediaries.GlobalDistinguisher
+	}
 	implied, err := finding.ReportLocator.Implied()
 	if err != nil {
 		return intermediaries.Finding{}, err
@@ -54,7 +59,11 @@ func (logic ApplicationLogic) PostFinding(finding intermediaries.Finding, organi
 	logic.findingUpdates <- event.FindingUpdate{
 		ID:             resFinding.Identifier,
 		OrganizationId: resFinding.OrganizationId,
-		ReportLocator:  event.ReportLocator{Type: string(resFinding.ReportLocator.Type), Value: resFinding.ReportLocator.Value},
+		ReportLocator: event.ReportLocator{
+			Type:          string(resFinding.ReportLocator.Type),
+			Value:         resFinding.ReportLocator.Value,
+			Distinguisher: resFinding.ReportLocator.Distinguisher,
+		},
 	}
 	return resFinding, err
 }

@@ -21,21 +21,24 @@ type mongoFindingsPersistence struct {
 }
 
 type ReportLocator struct {
-	Type  string `bson:"type"`
-	Value string `bson:"value"`
+	Type          string `bson:"type"`
+	Value         string `bson:"value"`
+	Distinguisher string `bson:"distinguisher"`
 }
 
 func (locator ReportLocator) toIntermediary() intermediaries.ReportLocator {
 	return intermediaries.ReportLocator{
-		Type:  intermediaries.ReportLocatorType(locator.Type),
-		Value: locator.Value,
+		Type:          intermediaries.ReportLocatorType(locator.Type),
+		Value:         locator.Value,
+		Distinguisher: locator.Distinguisher,
 	}
 }
 
 func ReportLocatorFromIntermediary(intermediary intermediaries.ReportLocator) ReportLocator {
 	return ReportLocator{
-		Type:  string(intermediary.Type),
-		Value: intermediary.Value,
+		Type:          string(intermediary.Type),
+		Value:         intermediary.Value,
+		Distinguisher: intermediary.Distinguisher,
 	}
 }
 
@@ -122,7 +125,14 @@ func (persistence mongoFindingsPersistence) UpdateFinding(findingI intermediarie
 	findingC := persistence.findingCollection()
 	findingR := Finding{}
 	mongoFinding := findingFromIntermediary(findingI)
-	err := findingC.FindOneAndUpdate(context.TODO(), bson.D{bson.E{Key: "reportDistinguisher", Value: findingI.ReportDistinguisher}, primitive.E{Key: "reportLocator", Value: mongoFinding.ReportLocator}}, bson.M{"$set": mongoFinding}, options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)).Decode(&findingR)
+	err := findingC.FindOneAndUpdate(context.TODO(), bson.D{
+		bson.E{Key: "reportDistinguisher", Value: findingI.ReportDistinguisher},
+		primitive.E{Key: "reportLocator", Value: mongoFinding.ReportLocator},
+	},
+		bson.M{"$set": mongoFinding},
+		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After),
+	).Decode(&findingR)
+
 	return findingR.toIntermediary(), err
 }
 

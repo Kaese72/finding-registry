@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+
+	"github.com/Kaese72/finding-registry/rest/apierrors"
 )
 
 type ReportLocatorType string
@@ -16,18 +18,40 @@ const (
 	UDP      ReportLocatorType = "UDP"
 )
 
-func isValidIPv4(ip string) bool {
+const (
+	// "global" is the default distinguisher for everything
+	// and indicates the thing is attached to has no locality
+	GlobalDistinguisher = "global"
+)
+
+func isValidIPv4(ip string) (net.IP, bool) {
 	parsedIP := net.ParseIP(ip)
-	return parsedIP != nil && parsedIP.To4() != nil
+	return parsedIP, parsedIP != nil && parsedIP.To4() != nil
 }
 
 func (locator ReportLocator) Validate() error {
 	switch locator.Type {
 	case IPv4:
 		// Validate IPv4 address
-		if !isValidIPv4(locator.Value) {
+		ip, is4 := isValidIPv4(locator.Value)
+		if !is4 {
 			return fmt.Errorf("invalid IPv4 address: %s", locator.Value)
 		}
+		if ip.IsPrivate() {
+			// If the IP address is private, it must have a distinguisher.
+			// This is to allow multiple private IPv4 addresses to be distinguished,
+			// and you need to explicitly set separate or merge private addresses.
+			if locator.Distinguisher == "" {
+				// FIXME Maybe not allow "global" either?
+				return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("private IPv4 address must have a distinguisher")}
+			}
+			if locator.Distinguisher == GlobalDistinguisher {
+				return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("private IPv4 address cannot have a global distinguisher")}
+			}
+		}
+	// case IPv6:
+	// 	// Validate IPv6 address
+	// 	// FIXME global check
 	case HTTP:
 		// Validate URL
 		_, err := url.Parse(locator.Value)
@@ -55,13 +79,14 @@ func (locator ReportLocator) Validate() error {
 }
 
 type ReportLocator struct {
-	Type  ReportLocatorType
-	Value string
+	Type          ReportLocatorType
+	Value         string
+	Distinguisher string
 }
 
 func (r ReportLocator) Implied() ([]ReportLocator, error) {
-	if r.Validate() != nil {
-		return nil, fmt.Errorf("invalid ReportLocator: %s", r)
+	if err := r.Validate(); err != nil {
+		return nil, err
 	}
 	ret := []ReportLocator{r}
 	switch r.Type {
@@ -71,7 +96,7 @@ func (r ReportLocator) Implied() ([]ReportLocator, error) {
 			// This should never happen, since we already validated the URL
 			panic(err)
 		}
-		locator := ReportLocator{Type: TCP, Value: u.Host}
+		locator := ReportLocator{Type: TCP, Value: u.Host, Distinguisher: r.Distinguisher}
 		if u.Port() == "" {
 			if u.Scheme == "http" {
 				locator.Value += ":80"
@@ -87,8 +112,8 @@ func (r ReportLocator) Implied() ([]ReportLocator, error) {
 		if err != nil {
 			return nil, err
 		}
-		locator := ReportLocator{Type: Hostname, Value: host}
-		if isValidIPv4(host) {
+		locator := ReportLocator{Type: Hostname, Value: host, Distinguisher: r.Distinguisher}
+		if _, is4 := isValidIPv4(host); is4 {
 			locator.Type = IPv4
 		}
 		downstreamLocators, err := locator.Implied()

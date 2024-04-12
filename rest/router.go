@@ -10,13 +10,14 @@ import (
 	"strings"
 
 	"github.com/Kaese72/finding-registry/internal/application"
+	"github.com/Kaese72/finding-registry/rest/apierrors"
 	"github.com/Kaese72/finding-registry/rest/models"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 )
 
 func terminalHTTPError(w http.ResponseWriter, err error) {
-	var apiError APIError
+	var apiError apierrors.APIError
 	if errors.As(err, &apiError) {
 		if apiError.Code == 500 {
 			// When an unknown error occurs, do not send the error to the client
@@ -27,7 +28,7 @@ func terminalHTTPError(w http.ResponseWriter, err error) {
 		} else {
 			bytes, intErr := json.MarshalIndent(apiError, "", "   ")
 			if intErr != nil {
-				// Must send a normal Error an not APIError just in case of eternal loop
+				// Must send a normal Error an not apierrors.APIError just in case of eternal loop
 				terminalHTTPError(w, fmt.Errorf("error encoding response: %s", intErr.Error()))
 				return
 			}
@@ -35,7 +36,7 @@ func terminalHTTPError(w http.ResponseWriter, err error) {
 			return
 		}
 	} else {
-		terminalHTTPError(w, APIError{Code: http.StatusInternalServerError, WrappedError: err})
+		terminalHTTPError(w, apierrors.APIError{Code: http.StatusInternalServerError, WrappedError: err})
 		return
 	}
 }
@@ -50,21 +51,19 @@ func (appMux restApplicationMux) findingGetHandler(w http.ResponseWriter, r *htt
 	vars := mux.Vars(r)
 	identifier, ok := vars["identifier"]
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
+		terminalHTTPError(w, apierrors.APIError{Code: http.StatusBadRequest, WrappedError: errors.New("missing identifier")})
 		return
 	}
 	finding, err := appMux.application.ReadFinding(identifier, organizationID)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		terminalHTTPError(w, err)
 		return
 	}
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "   ")
 	err = encoder.Encode(finding)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		terminalHTTPError(w, err)
 		return
 	}
 }
@@ -73,8 +72,7 @@ func (appMux restApplicationMux) findingsGetHandler(w http.ResponseWriter, r *ht
 	organizationId := int(r.Context().Value(organizationIDKey).(float64))
 	findings, err := appMux.application.ReadFindings(organizationId)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		terminalHTTPError(w, err)
 		return
 	}
 	result := []models.Finding{}
@@ -86,8 +84,7 @@ func (appMux restApplicationMux) findingsGetHandler(w http.ResponseWriter, r *ht
 	encoder.SetIndent("", "   ")
 	err = encoder.Encode(result)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		terminalHTTPError(w, err)
 		return
 	}
 }
@@ -97,8 +94,7 @@ func (appMux restApplicationMux) findingsPostHandler(w http.ResponseWriter, r *h
 	inputFinding := models.Finding{}
 	err := json.NewDecoder(r.Body).Decode(&inputFinding)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Print(err.Error())
+		terminalHTTPError(w, apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("error decoding request: %s", err.Error())})
 		return
 	}
 	// Reset Identifier, just to be sure
@@ -106,16 +102,14 @@ func (appMux restApplicationMux) findingsPostHandler(w http.ResponseWriter, r *h
 	inputFinding.Identifier = ""
 	findingR, err := appMux.application.PostFinding(inputFinding.ToIntermediary(), organizationID)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		terminalHTTPError(w, err)
 		return
 	}
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "   ")
 	err = encoder.Encode(models.FindingFromIntermediary(findingR))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Print(err.Error())
+		terminalHTTPError(w, err)
 		return
 	}
 }
@@ -145,29 +139,29 @@ func (app restApplicationMux) authMiddleware(next http.Handler) http.Handler {
 		})
 
 		if err != nil {
-			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: fmt.Errorf("error parsing token: %s", err.Error())})
+			terminalHTTPError(w, apierrors.APIError{Code: http.StatusUnauthorized, WrappedError: fmt.Errorf("error parsing token: %s", err.Error())})
 			return
 		}
 
 		if !token.Valid {
-			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("invalid token")})
+			terminalHTTPError(w, apierrors.APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("invalid token")})
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read claims")})
+			terminalHTTPError(w, apierrors.APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read claims")})
 			return
 		}
 
 		userID, ok := claims[string(userIDKey)].(float64)
 		if !ok {
-			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read userId claim")})
+			terminalHTTPError(w, apierrors.APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read userId claim")})
 			return
 		}
 		organizationID, ok := claims[string(organizationIDKey)].(float64)
 		if !ok {
-			terminalHTTPError(w, APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read organizationId claim")})
+			terminalHTTPError(w, apierrors.APIError{Code: http.StatusUnauthorized, WrappedError: errors.New("could not read organizationId claim")})
 			return
 		}
 

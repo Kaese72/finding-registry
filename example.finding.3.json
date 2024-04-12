@@ -6,6 +6,7 @@
     },
     "reportLocator": {
         "type": "IPv4",
-        "value": "192.168.101.3"
+        "value": "192.168.101.3",
+        "distinguisher": "apartment"
     }
 }
