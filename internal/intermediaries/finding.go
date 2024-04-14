@@ -49,6 +49,10 @@ func (locator ReportLocator) Validate() error {
 				return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("private IPv4 address cannot have a global distinguisher")}
 			}
 		}
+		if ip.IsLoopback() {
+			// We do not allow findings to be reported on loopback addresses
+			return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("loopback IPv4 address not allowed")}
+		}
 	// case IPv6:
 	// 	// Validate IPv6 address
 	// 	// FIXME global check
