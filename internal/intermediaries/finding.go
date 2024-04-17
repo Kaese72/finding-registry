@@ -3,6 +3,7 @@ package intermediaries
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 
 	"github.com/Kaese72/finding-registry/rest/apierrors"
@@ -29,38 +30,41 @@ func isValidIPv4(ip string) (net.IP, bool) {
 	return parsedIP, parsedIP != nil && parsedIP.To4() != nil
 }
 
+// Validate checks if the ReportLocator is valid together with its value.
+// Returns an API Error if the validation fails.
+// 400: The provided data is syntactically incorrect
+// 422: The provided data is syntactically correct, but semantically incorrect, like disallowed values
 func (locator ReportLocator) Validate() error {
 	if locator.Type == "" {
-		return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("missing Type")}
+		return apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("missing Type")}
 	}
 	if locator.Value == "" {
-		return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("missing Value")}
+		return apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("missing Value")}
 	}
 	if locator.Distinguisher == "" {
-		return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("missing Distinguisher")}
+		return apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("missing Distinguisher")}
 	}
 	switch locator.Type {
 	case IPv4:
 		// Validate IPv4 address
 		ip, is4 := isValidIPv4(locator.Value)
 		if !is4 {
-			return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("invalid IPv4 address: %s", locator.Value)}
+			return apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("invalid IPv4 address: %s", locator.Value)}
 		}
 		if ip.IsPrivate() {
 			// If the IP address is private, it must have a distinguisher.
 			// This is to allow multiple private IPv4 addresses to be distinguished,
 			// and you need to explicitly set separate or merge private addresses.
 			if locator.Distinguisher == "" {
-				// FIXME Maybe not allow "global" either?
-				return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("private IPv4 address must have a distinguisher")}
+				return apierrors.APIError{Code: http.StatusUnprocessableEntity, WrappedError: fmt.Errorf("private IPv4 address must have a distinguisher")}
 			}
 			if locator.Distinguisher == GlobalDistinguisher {
-				return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("private IPv4 address cannot have a global distinguisher")}
+				return apierrors.APIError{Code: http.StatusUnprocessableEntity, WrappedError: fmt.Errorf("private IPv4 address cannot have a global distinguisher")}
 			}
 		}
 		if ip.IsLoopback() {
 			// We do not allow findings to be reported on loopback addresses
-			return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("loopback IPv4 address not allowed")}
+			return apierrors.APIError{Code: http.StatusUnprocessableEntity, WrappedError: fmt.Errorf("loopback IPv4 address not allowed")}
 		}
 	// case IPv6:
 	// 	// Validate IPv6 address
@@ -69,28 +73,28 @@ func (locator ReportLocator) Validate() error {
 		// Validate URL
 		_, err := url.Parse(locator.Value)
 		if err != nil {
-			return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("invalid URL: %s", locator.Value)}
+			return apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("invalid URL: %s", locator.Value)}
 		}
 	case TCP:
 		// Validate TCP address
 		_, err := net.ResolveTCPAddr("tcp", locator.Value)
 		if err != nil {
-			return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("invalid TCP address: %s", locator.Value)}
+			return apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("invalid TCP address: %s", locator.Value)}
 		}
 	case UDP:
 		// Validate UDP address
 		_, err := net.ResolveUDPAddr("udp", locator.Value)
 		if err != nil {
-			return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("invalid IPv4 address: %s", locator.Value)}
+			return apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("invalid IPv4 address: %s", locator.Value)}
 		}
 	case Hostname:
 		// Everything is a valid hostname it seems
 		// FIXME there are some restrictions on hostnames after all...
 		if locator.Value == "localhost" {
-			return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("hostname may not be '%s'", locator.Value)}
+			return apierrors.APIError{Code: http.StatusUnprocessableEntity, WrappedError: fmt.Errorf("hostname may not be '%s'", locator.Value)}
 		}
 	default:
-		return apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("invalid ReportLocatorType: %s", locator.Type)}
+		return apierrors.APIError{Code: http.StatusBadRequest, WrappedError: fmt.Errorf("invalid ReportLocatorType: %s", locator.Type)}
 	}
 	return nil
 }
