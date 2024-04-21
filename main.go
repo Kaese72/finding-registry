@@ -1,8 +1,8 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -10,6 +10,7 @@ import (
 	"github.com/Kaese72/finding-registry/internal/application"
 	"github.com/Kaese72/finding-registry/internal/database"
 	"github.com/Kaese72/finding-registry/rest"
+	"github.com/Kaese72/riskie-lib/logging"
 	"github.com/spf13/viper"
 )
 
@@ -56,16 +57,16 @@ func init() {
 
 	err := viper.Unmarshal(&Loaded)
 	if err != nil {
-		log.Fatal(err.Error())
+		logging.Fatal(context.Background(), err.Error())
 	}
 	if Loaded.Database.ConnectionString == "" {
-		log.Fatal("Database connection string not set")
+		logging.Fatal(context.Background(), "Database connection string not set")
 	}
 	if Loaded.JWT.Secret == "" {
-		log.Fatal("JWT secret key not set")
+		logging.Fatal(context.Background(), "JWT secret key not set")
 	}
 	if Loaded.Event.ConnectionString == "" {
-		log.Fatal("Event connection string not set")
+		logging.Fatal(context.Background(), "Event connection string not set")
 	}
 }
 

@@ -1,8 +1,9 @@
 module github.com/Kaese72/finding-registry
 
-go 1.22
+go 1.22.0
 
 require (
+	github.com/Kaese72/riskie-lib v0.0.2
 	github.com/rabbitmq/amqp091-go v1.9.0
 	go.mongodb.org/mongo-driver v1.13.1
 )

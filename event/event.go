@@ -3,8 +3,9 @@ package event
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"time"
+
+	"github.com/Kaese72/riskie-lib/logging"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -31,14 +32,14 @@ func Setup(connectionString string, queueName string) (chan FindingUpdate, error
 	}
 	findingUpdatesChan := make(chan FindingUpdate)
 	go func() {
-		log.Printf("Started event sender")
+		logging.Info(context.Background(), "Started event sender")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		for findingUpdate := range findingUpdatesChan {
-			log.Printf("Received update for: %s", findingUpdate.ID)
+			logging.Info(context.Background(), "Received finding update", map[string]interface{}{"findingId": findingUpdate.ID})
 			encoded, err := json.Marshal(findingUpdate)
 			if err != nil {
-				log.Printf("Failed to marshal finding update: %v... Continued", err)
+				logging.Info(context.Background(), "Failed to marshal finding update... Continued", map[string]interface{}{"findingId": findingUpdate.ID, "error": err.Error()})
 				continue
 			}
 			err = channel.PublishWithContext(ctx,
@@ -52,7 +53,7 @@ func Setup(connectionString string, queueName string) (chan FindingUpdate, error
 				},
 			)
 			if err != nil {
-				log.Printf("Failed to publish finding update: %v... Continued", err)
+				logging.Info(context.Background(), "Failed to marshal finding update... Continued", map[string]interface{}{"findingId": findingUpdate.ID, "error": err.Error()})
 				continue
 			}
 		}
