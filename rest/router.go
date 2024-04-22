@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/Kaese72/riskie-lib/logging"
-	"go.elastic.co/apm/module/apmgorilla"
+	"go.elastic.co/apm/module/apmgorilla/v2"
 
 	"github.com/Kaese72/finding-registry/internal/application"
 	"github.com/Kaese72/finding-registry/rest/apierrors"
