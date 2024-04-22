@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Kaese72/riskie-lib/logging"
+	"go.elastic.co/apm/module/apmgorilla"
 
 	"github.com/Kaese72/finding-registry/internal/application"
 	"github.com/Kaese72/finding-registry/rest/apierrors"
@@ -55,7 +56,7 @@ func (appMux restApplicationMux) findingGetHandler(w http.ResponseWriter, r *htt
 		terminalHTTPError(r.Context(), w, apierrors.APIError{Code: http.StatusBadRequest, WrappedError: errors.New("missing identifier")})
 		return
 	}
-	finding, err := appMux.application.ReadFinding(identifier, organizationID)
+	finding, err := appMux.application.ReadFinding(r.Context(), identifier, organizationID)
 	if err != nil {
 		terminalHTTPError(r.Context(), w, err)
 		return
@@ -71,7 +72,7 @@ func (appMux restApplicationMux) findingGetHandler(w http.ResponseWriter, r *htt
 
 func (appMux restApplicationMux) findingsGetHandler(w http.ResponseWriter, r *http.Request) {
 	organizationId := int(r.Context().Value(organizationIDKey).(float64))
-	findings, err := appMux.application.ReadFindings(organizationId)
+	findings, err := appMux.application.ReadFindings(r.Context(), organizationId)
 	if err != nil {
 		terminalHTTPError(r.Context(), w, err)
 		return
@@ -101,7 +102,7 @@ func (appMux restApplicationMux) findingsPostHandler(w http.ResponseWriter, r *h
 	// Reset Identifier, just to be sure
 	// FIXME should not be fixed here
 	inputFinding.Identifier = ""
-	findingR, err := appMux.application.PostFinding(inputFinding.ToIntermediary(), organizationID)
+	findingR, err := appMux.application.PostFinding(r.Context(), inputFinding.ToIntermediary(), organizationID)
 	if err != nil {
 		terminalHTTPError(r.Context(), w, err)
 		return
@@ -174,6 +175,7 @@ func (app restApplicationMux) authMiddleware(next http.Handler) http.Handler {
 
 func InitMux(logic application.ApplicationLogic, jwtSecret string) *mux.Router {
 	router := mux.NewRouter().PathPrefix("/finding-registry").Subrouter()
+	apmgorilla.Instrument(router)
 	appMux := restApplicationMux{application: logic, jwtSecret: jwtSecret}
 	router.Use(appMux.authMiddleware)
 	router.HandleFunc("/findings/{identifier}", appMux.findingGetHandler).Methods(http.MethodGet)

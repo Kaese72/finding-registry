@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Kaese72/finding-registry/internal/intermediaries"
+	"go.elastic.co/apm/module/apmmongo/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -101,12 +102,12 @@ func findingFromIntermediary(intermediary intermediaries.Finding) Finding {
 }
 
 func NewMongoFindingsPersistence(config MongoDBConfig) (mongoFindingsPersistence, error) {
-	mongoClient, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(config.ConnectionString))
+	mongoClient, err := mongo.Connect(context.Background(), options.Client().ApplyURI(config.ConnectionString).SetMonitor(apmmongo.CommandMonitor()))
 	if err != nil {
 		return mongoFindingsPersistence{}, err
 	}
 
-	if err := mongoClient.Ping(context.TODO(), nil); err != nil {
+	if err := mongoClient.Ping(context.Background(), nil); err != nil {
 		return mongoFindingsPersistence{}, err
 	}
 
@@ -120,12 +121,12 @@ func (persistence mongoFindingsPersistence) findingCollection() *mongo.Collectio
 	return persistence.mongoClient.Database(persistence.dbName).Collection("findings")
 }
 
-func (persistence mongoFindingsPersistence) UpdateFinding(findingI intermediaries.Finding, organizationID int) (intermediaries.Finding, error) {
+func (persistence mongoFindingsPersistence) UpdateFinding(ctx context.Context, findingI intermediaries.Finding, organizationID int) (intermediaries.Finding, error) {
 	findingI.OrganizationId = organizationID
 	findingC := persistence.findingCollection()
 	findingR := Finding{}
 	mongoFinding := findingFromIntermediary(findingI)
-	err := findingC.FindOneAndUpdate(context.TODO(), bson.D{
+	err := findingC.FindOneAndUpdate(ctx, bson.D{
 		bson.E{Key: "reportDistinguisher", Value: findingI.ReportDistinguisher},
 		primitive.E{Key: "reportLocator", Value: mongoFinding.ReportLocator},
 	},
@@ -136,22 +137,22 @@ func (persistence mongoFindingsPersistence) UpdateFinding(findingI intermediarie
 	return findingR.toIntermediary(), err
 }
 
-func (persistence mongoFindingsPersistence) GetFinding(identifier string, organizationID int) (intermediaries.Finding, error) {
+func (persistence mongoFindingsPersistence) GetFinding(ctx context.Context, identifier string, organizationID int) (intermediaries.Finding, error) {
 	findinfC := persistence.findingCollection()
 	objID, _ := primitive.ObjectIDFromHex(identifier)
 	findingR := Finding{}
-	err := findinfC.FindOne(context.TODO(), bson.D{{Key: "_id", Value: objID}, {Key: "organizationId", Value: organizationID}}).Decode(&findingR)
+	err := findinfC.FindOne(ctx, bson.D{{Key: "_id", Value: objID}, {Key: "organizationId", Value: organizationID}}).Decode(&findingR)
 	return findingR.toIntermediary(), err
 }
 
-func (persistence mongoFindingsPersistence) GetFindings(organizationID int) ([]intermediaries.Finding, error) {
+func (persistence mongoFindingsPersistence) GetFindings(ctx context.Context, organizationID int) ([]intermediaries.Finding, error) {
 	findinfC := persistence.findingCollection()
 	findingIs := []intermediaries.Finding{}
-	cursor, err := findinfC.Find(context.TODO(), bson.D{{Key: "organizationId", Value: organizationID}})
+	cursor, err := findinfC.Find(ctx, bson.D{{Key: "organizationId", Value: organizationID}})
 	if err != nil {
 		return nil, err
 	}
-	for cursor.Next(context.TODO()) {
+	for cursor.Next(ctx) {
 		findingR := Finding{}
 		err := cursor.Decode(&findingR)
 		if err != nil {
@@ -160,10 +161,4 @@ func (persistence mongoFindingsPersistence) GetFindings(organizationID int) ([]i
 		findingIs = append(findingIs, findingR.toIntermediary())
 	}
 	return findingIs, err
-}
-
-func (persistence mongoFindingsPersistence) Purge() error {
-	findingC := persistence.findingCollection()
-	_, err := findingC.DeleteMany(context.TODO(), bson.D{})
-	return err
 }

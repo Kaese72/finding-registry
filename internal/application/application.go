@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"errors"
 
 	"github.com/Kaese72/finding-registry/event"
@@ -20,15 +21,15 @@ func NewApplicationLogic(persistence database.Persistence, findingUpdates chan e
 	}
 }
 
-func (logic ApplicationLogic) ReadFinding(identifier string, organizationID int) (intermediaries.Finding, error) {
-	return logic.persistence.GetFinding(identifier, organizationID)
+func (logic ApplicationLogic) ReadFinding(ctx context.Context, identifier string, organizationID int) (intermediaries.Finding, error) {
+	return logic.persistence.GetFinding(ctx, identifier, organizationID)
 }
 
-func (logic ApplicationLogic) ReadFindings(organizationID int) ([]intermediaries.Finding, error) {
-	return logic.persistence.GetFindings(organizationID)
+func (logic ApplicationLogic) ReadFindings(ctx context.Context, organizationID int) ([]intermediaries.Finding, error) {
+	return logic.persistence.GetFindings(ctx, organizationID)
 }
 
-func (logic ApplicationLogic) PostFinding(finding intermediaries.Finding, organizationID int) (intermediaries.Finding, error) {
+func (logic ApplicationLogic) PostFinding(ctx context.Context, finding intermediaries.Finding, organizationID int) (intermediaries.Finding, error) {
 	finding.Identifier = "" // Do not allow identifier to be set
 	if finding.ReportDistinguisher.Type == "" {
 		return intermediaries.Finding{}, errors.New("must set report distingusher type")
@@ -52,7 +53,7 @@ func (logic ApplicationLogic) PostFinding(finding intermediaries.Finding, organi
 		return intermediaries.Finding{}, err
 	}
 	finding.ImpliedReportLocators = implied
-	resFinding, err := logic.persistence.UpdateFinding(finding, organizationID)
+	resFinding, err := logic.persistence.UpdateFinding(ctx, finding, organizationID)
 	if err != nil {
 		return resFinding, err
 	}
