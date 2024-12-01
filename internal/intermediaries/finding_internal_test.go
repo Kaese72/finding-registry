@@ -6,48 +6,48 @@ import (
 	"testing"
 
 	"github.com/Kaese72/finding-registry/internal/intermediaries"
-	"github.com/Kaese72/finding-registry/rest/apierrors"
+	"github.com/Kaese72/riskie-lib/apierror"
 )
 
 func TestReportLocatorValidateError(t *testing.T) {
 	// Test cases for ReportLocator.Validate
 	var tests = []struct {
 		locator intermediaries.ReportLocator
-		err     apierrors.APIError
+		err     apierror.APIError
 	}{
 		// Missing values
 		{
 			intermediaries.ReportLocator{Type: intermediaries.IPv4, Value: "192.168.0.1", Distinguisher: ""},
-			apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("missing Distinguisher")},
+			apierror.APIError{Code: 400, WrappedError: fmt.Errorf("missing Distinguisher")},
 		},
 		{
 			intermediaries.ReportLocator{Type: intermediaries.IPv4, Value: "", Distinguisher: "global"},
-			apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("missing Value")},
+			apierror.APIError{Code: 400, WrappedError: fmt.Errorf("missing Value")},
 		},
 		{
 			intermediaries.ReportLocator{Type: "", Value: "192.168.0.1", Distinguisher: "global"},
-			apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("missing Type")},
+			apierror.APIError{Code: 400, WrappedError: fmt.Errorf("missing Type")},
 		},
 		// IPv4 validation
 		{
 			intermediaries.ReportLocator{Type: intermediaries.IPv4, Value: "192.168.0.1", Distinguisher: "global"},
-			apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("private IPv4 address cannot have a global distinguisher")},
+			apierror.APIError{Code: 400, WrappedError: fmt.Errorf("private IPv4 address cannot have a global distinguisher")},
 		},
 		{
 			intermediaries.ReportLocator{Type: intermediaries.IPv4, Value: "192.168.0", Distinguisher: "global"},
-			apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("invalid IPv4 address: 192.168.0")},
+			apierror.APIError{Code: 400, WrappedError: fmt.Errorf("invalid IPv4 address: 192.168.0")},
 		},
 		{
 			intermediaries.ReportLocator{Type: intermediaries.IPv4, Value: "127.0.0.1", Distinguisher: "global"},
-			apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("loopback IPv4 address not allowed")},
+			apierror.APIError{Code: 400, WrappedError: fmt.Errorf("loopback IPv4 address not allowed")},
 		},
 		{
 			intermediaries.ReportLocator{Type: intermediaries.IPv4, Value: "127.0.0.1", Distinguisher: "somethingspecial"},
-			apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("loopback IPv4 address not allowed")},
+			apierror.APIError{Code: 400, WrappedError: fmt.Errorf("loopback IPv4 address not allowed")},
 		},
 		{
 			intermediaries.ReportLocator{Type: intermediaries.Hostname, Value: "localhost", Distinguisher: "global"},
-			apierrors.APIError{Code: 400, WrappedError: fmt.Errorf("hostname may not be 'localhost'")},
+			apierror.APIError{Code: 400, WrappedError: fmt.Errorf("hostname may not be 'localhost'")},
 		},
 	}
 	for _, testInput := range tests {
@@ -59,7 +59,7 @@ func TestReportLocatorValidateError(t *testing.T) {
 			if err.Error() != testInput.err.Error() {
 				t.Fatalf("expected error %v, got %v", testInput.err, err)
 			}
-			var apiErr apierrors.APIError
+			var apiErr apierror.APIError
 			if !errors.As(err, &apiErr) {
 				t.Fatalf("expected APIError, got %T", err)
 			}
